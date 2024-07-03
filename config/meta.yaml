@@ -1,0 +1,56 @@
+server:
+  name: 'async sqlite server'
+  host: '127.0.0.1'
+  port: '8080'
+  http_version: 3
+
+
+  endpoints:
+    '/db':
+      methods:
+        - 'OPTIONS'
+
+      '/router':
+        '/fetch':
+          methods:
+            - 'GET'
+
+        '/add':
+          methods:
+            - 'POST'
+
+        '/remove':
+          methods:
+            - 'PUT'
+            - 'PATCH'
+
+
+      '/common':
+        methods:
+          - 'GET'
+          - 'POST'
+
+        '/fetch_tables/':
+
+        '/table/<database:str>/<table:str>':
+          methods:
+            - 'PUT'
+            - 'PATCH'
+
+        '/query/<database:str>':
+          auth: 'dev'
+
+
+    '/auth':
+
+
+
+
+
+
+database:
+  base_path: 'database/'
+  router_path: 'router/'
+  common_path: 'common/'
+
+

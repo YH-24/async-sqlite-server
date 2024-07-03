@@ -1,0 +1,30 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="HtmlUnknownAnchorTarget" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="HtmlUnknownTarget" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="JSUnnecessarySemicolon" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="PyPep8Inspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="ignoredErrors">
+        <list>
+          <option value="E701" />
+          <option value="E501" />
+          <option value="E722" />
+          <option value="E702" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="main.render" />
+          <option value="main.camera" />
+          <option value="main.loader" />
+          <option value="playwright.async_api._generated.BrowserType.new_page" />
+          <option value="playwright.async_api._generated.BrowserContext.launch_persistent_context" />
+          <option value="ensta.Mobile.Mobile.get_upload_id_bytes" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
