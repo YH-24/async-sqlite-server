@@ -1,0 +1,17 @@
+schema_type: 'router'
+
+player:
+  data:
+    uuid:
+      type: TEXT UNIQUE
+      default: 'null'
+#      value: 'blahblah'
+    username:
+      type: TEXT
+      default: null
+    nickname:
+      type: TEXT
+      default: null
+
+
+
