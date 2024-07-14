@@ -6,43 +6,57 @@ server:
 
 
   endpoints:
+    '/':
+      methods:
+        - 'HEAD'
+        - 'GET'
+
+      response:
+        content:
+          'Index page'
+
     '/db':
       methods:
         - 'OPTIONS'
+        - 'GET'
 
-      '/router':
-        '/fetch':
-          methods:
-            - 'GET'
+      response:
+        content:
+          'Db at {req.path}'
 
-        '/add':
-          methods:
-            - 'POST'
-
-        '/remove':
-          methods:
-            - 'PUT'
-            - 'PATCH'
-
-
-      '/common':
-        methods:
-          - 'GET'
-          - 'POST'
-
-        '/fetch_tables/':
-
-        '/table/<database:str>/<table:str>':
-          methods:
-            - 'PUT'
-            - 'PATCH'
-
-        '/query/<database:str>':
-          auth: 'dev'
+#      '/router':
+#        '/fetch':
+#          methods:
+#            - 'GET'
+#
+#        '/add':
+#          methods:
+#            - 'POST'
+#
+#        '/remove':
+#          methods:
+#            - 'PUT'
+#            - 'PATCH'
 
 
-    '/auth':
+#      '/common':
+#        methods:
+#          - 'GET'
+#          - 'POST'
 
+#        '/fetch_tables/':
+#
+#        '/table/<database:str>/<table:str>':
+#          methods:
+#            - 'PUT'
+#            - 'PATCH'
+
+#        '/query/<database:str>':
+#          auth: 'dev'
+##
+#
+#    '/auth':
+#
 
 
 

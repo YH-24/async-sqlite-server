@@ -1,14 +1,14 @@
 import os
-import pathlib
 from typing import Union, Iterable
 from uuid import uuid4
 
 import aiofiles as aiofiles
 from aiosqlite import connect, Connection, Cursor
-from yaml import parse, load
+from fastapi import FastAPI, Response, Request
+from yaml import load
 from yaml.loader import UnsafeLoader
 
-from exceptions import MalformedSchema, DatabaseConnectionLost
+from sqlite_server.exceptions import MalformedSchema, DatabaseConnectionLost
 
 
 def repeat(times: int, char='?', sep=', '):
@@ -24,6 +24,17 @@ async def ensure_conn(fp: str, conn: Connection = None):
             pass
 
     return await connect(fp).__aenter__()
+
+
+# async def build_routes(dict_):
+#     built = {}
+#
+#     for k, v in dict_:
+#         built[k] = v
+#         if isinstance(v, dict):
+#
+#
+#     return {}
 
 
 class DatabaseRow:
@@ -64,7 +75,8 @@ class DatabaseTable:
 
         return self
 
-    async def get_rows(self, cols: Union[list, str] = '*', where: dict = None, row_limit: int = 1, update: bool = False):
+    async def get_rows(self, cols: Union[list, str] = '*', where: dict = None, row_limit: int = 1,
+                       update: bool = False):
         cur: Cursor = await self.conn.cursor()
 
         if not where:
@@ -138,7 +150,6 @@ class DatabaseFile:
         self.tables = tables if tables else {}
         self.schema = schema if schema else {}
 
-
     @classmethod
     async def create(cls, fp: str, schema: dict = None, persist: bool = False):
         tables = {}
@@ -204,13 +215,13 @@ class DatabaseManager:
         routers = {}
         for name, router in config['router'].items():
             if not routers.get(name, None):
-                routers[name] = await DatabaseRouter.create(f'../database/router/{name}.db', schema=router,
+                routers[name] = await DatabaseRouter.create(f'./database/router/{name}.db', schema=router,
                                                             persist=True)
 
         return cls(config, routers)
 
     @staticmethod
-    async def config_from_yaml(config_dir: str = '../config/'):
+    async def config_from_yaml(config_dir: str = './config/'):
         os.makedirs(config_dir, exist_ok=True)
         os.makedirs(f'{config_dir}schemas/', exist_ok=True)
 
@@ -246,4 +257,80 @@ class DatabaseManager:
 
         return config
 
-    print('pass gas')
+
+accept_methods = ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS')
+
+
+class ServerMeth:
+    config: dict
+    special_keys: tuple = ('methods', 'response', 'auth')
+    endpoints: dict = {'/': {'response': {'content': 'Hallo'}}}
+
+    def __init__(self, config):
+        self.config = config if config else {}
+        self.endpoints = {**self.endpoints, **self.iter_endpoints(config['endpoints'])}
+
+        print(self.endpoints)
+
+
+
+
+    @staticmethod
+    def handle_response(res_input: dict, headers: dict = None):
+        if not headers:
+            headers = {'content-type': 'text/plain'}
+
+        content = 'Endpoint is under construction...'
+        if isinstance(res_input, dict):
+            content = str(res_input.get('content', content))
+
+        return Response(content=content)
+
+    def iter_endpoints(self, data, parent_key='', routes=None):
+        if routes is None:
+            routes = {}
+
+        for key, value in data.items():
+            set_key = f'{parent_key}{key}'
+            endpoint = {}
+
+            if key in self.special_keys:  # current key is not parent but is either response, methods, or auth
+                endpoint[key] = value
+                set_key = parent_key
+
+            elif isinstance(value, dict):
+                self.iter_endpoints(value, parent_key=set_key, routes=routes)
+
+            print(endpoint)
+            res = self.handle_response(endpoint.get('response', {}))
+
+            routes[set_key] = {'response': res, 'methods': endpoint.get('methods', ('GET',))}
+
+        return routes
+
+    async def handle_req(self, req: Request, params: dict = None):
+        if req.method not in accept_methods:
+            return Response(content={'error': f'Method "{req.method}" is not accepted'}, status_code=405)
+
+        req_path = f'/{req.path_params["path"]}' if req.path_params else '/'  # list comp after "http(s)://(localhost:80)/"
+
+        ep = self.endpoints.get(req_path, {'response': Response(content=f'URL Path "{req.url}" does not exist'),
+                                           'methods': ('GET',)})
+
+        if req.method in ep['methods']:
+            return ep['response']
+
+
+class Server(FastAPI):
+    db: DatabaseManager
+    config: dict
+    meth: ServerMeth
+
+    def __init__(self):
+        super().__init__()
+
+    async def pre_run(self):
+        db = await DatabaseManager.create()
+        self.db = db
+        self.config = db.config['meta']['server']
+        self.meth = ServerMeth(self.config)
