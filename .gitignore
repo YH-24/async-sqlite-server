@@ -1,5 +1,9 @@
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/dictionaries
-.idea/vcs.xml
-.idea/jsLibraryMappings.xml
+.idea/
+main.build/
+main.dist/
+main.onefile-build/
+
+build.bat
+
+tests.py
+testclient.py

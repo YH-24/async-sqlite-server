@@ -21,24 +21,9 @@ async def ensure_conn(fp: str, conn: Connection = None):
             await (await conn.cursor()).close()
             return conn
         except:
-            pass
+            pass  # very lazy... but most efficent :)
 
     return await connect(fp).__aenter__()
-
-
-# async def build_routes(dict_):
-#     built = {}
-#
-#     for k, v in dict_:
-#         built[k] = v
-#         if isinstance(v, dict):
-#
-#
-#     return {}
-
-
-class DatabaseRow:
-    pass
 
 
 class DatabaseTable:
@@ -111,8 +96,6 @@ class DatabaseTable:
 
         self.conn = await ensure_conn(self.fp, conn=self.conn)
 
-        # cur = await self.conn.cursor()
-
         values = {}
         has_defaults = False
 
@@ -165,7 +148,7 @@ class DatabaseFile:
         return cls(fp, db_conn, schema=schema)
 
     async def refresh(self, table):
-        pass
+        raise NotImplementedError('todo*')
 
     async def get_table(self, table_name, cols: Union[str, Iterable] = '*', row_limit: int = -1):
         if isinstance(cols, tuple) or isinstance(cols, list):
@@ -190,15 +173,17 @@ class DatabaseRouter(DatabaseFile):
             self.tables[self.router_table] = await self.get_table(self.router_table, cols=cols)
 
         uuid_taken = True
-        uuid = uuid4()
-
-        row = await self.tables[self.router_table].get_row(where={'uuid': uuid})
+        uuid = str(uuid4())
 
         while uuid_taken:
-            if row:
-                pass
+            if not await self.tables[self.router_table].get_row(where={'uuid': uuid}):
+                uuid_taken = False
+            uuid = str(uuid4())
 
-    pass
+        await self.tables[self.router_table].insert_row({'uuid': uuid, **cols})
+
+    async def get_key(self, cols: dict):
+        return await self.tables[self.router_table].get_row(where=cols)
 
 
 class DatabaseManager:
@@ -207,7 +192,6 @@ class DatabaseManager:
     def __init__(self, config, routers):
         self.config = config
         self.router = routers
-        pass
 
     @classmethod
     async def create(cls):
@@ -268,57 +252,52 @@ class ServerMeth:
 
     def __init__(self, config):
         self.config = config if config else {}
+        print(config['endpoints'])
         self.endpoints = {**self.endpoints, **self.iter_endpoints(config['endpoints'])}
 
         print(self.endpoints)
 
-
-
-
     @staticmethod
-    def handle_response(res_input: dict, headers: dict = None):
-        if not headers:
-            headers = {'content-type': 'text/plain'}
+    def res_content(res_input: dict):
 
         content = 'Endpoint is under construction...'
         if isinstance(res_input, dict):
             content = str(res_input.get('content', content))
 
-        return Response(content=content)
+        return content
 
     def iter_endpoints(self, data, parent_key='', routes=None):
         if routes is None:
             routes = {}
-
         for key, value in data.items():
             set_key = f'{parent_key}{key}'
             endpoint = {}
 
-            if key in self.special_keys:  # current key is not parent but is either response, methods, or auth
+            if key in self.special_keys:
                 endpoint[key] = value
                 set_key = parent_key
+                res = self.res_content(endpoint.get('response', {}))
+                routes[set_key] = {'response': res, 'methods': endpoint.get('methods', ('GET',))}
+
 
             elif isinstance(value, dict):
                 self.iter_endpoints(value, parent_key=set_key, routes=routes)
 
-            print(endpoint)
-            res = self.handle_response(endpoint.get('response', {}))
-
-            routes[set_key] = {'response': res, 'methods': endpoint.get('methods', ('GET',))}
-
         return routes
 
-    async def handle_req(self, req: Request, params: dict = None):
+    async def handle_req(self, req: Request):
         if req.method not in accept_methods:
             return Response(content={'error': f'Method "{req.method}" is not accepted'}, status_code=405)
 
-        req_path = f'/{req.path_params["path"]}' if req.path_params else '/'  # list comp after "http(s)://(localhost:80)/"
+        req_path = f'/{req.path_params["path"]}' if req.path_params else '/'
 
-        ep = self.endpoints.get(req_path, {'response': Response(content=f'URL Path "{req.url}" does not exist'),
+        ep = self.endpoints.get(req_path, {'response': 'URL Path "{req.url}" does not exist',
                                            'methods': ('GET',)})
 
         if req.method in ep['methods']:
-            return ep['response']
+            ep['response'] = ep['response'].format(req=req)
+
+            return Response(content=ep['response'])
 
 
 class Server(FastAPI):
