@@ -1,1 +1,0 @@
-py -m nuitka --follow-imports --onefile main.py
