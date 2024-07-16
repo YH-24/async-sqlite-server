@@ -4,6 +4,7 @@ main.dist/
 main.onefile-build/
 
 build.bat
+main.exe
 
 tests.py
 testclient.py
