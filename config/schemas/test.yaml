@@ -1,0 +1,19 @@
+schema_type: 'common'
+
+database1:  # Unique schema name
+  table1:  # Table name
+    foo: # A column
+      value: 'bar'  # Anything
+      type: 'TEXT' # Required, can be NULL INT/INTEGER (number, can be 0 or 1 for boolean), REAL (float number), TEXT, BLOB (raw data form)
+    baz: # Another column
+      value: 'qux'
+      type: 'TEXT'
+
+  table2:
+    steak:
+      value: 'SPINACH BUTTER'
+      type: 'TEXT'
+
+
+
+

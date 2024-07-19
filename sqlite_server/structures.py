@@ -197,12 +197,24 @@ class DatabaseManager:
     async def create(cls):
         config = await cls.config_from_yaml()
         routers = {}
+        db_config = config["meta"]["database"]
+        os.makedirs(f'{db_config["base_path"]}', exist_ok=True)
+        os.makedirs(f'{db_config["base_path"]}{db_config["router_path"]}', exist_ok=True)
+        os.makedirs(f'{db_config["base_path"]}{db_config["common_path"]}', exist_ok=True)
+
         for name, router in config['router'].items():
             if not routers.get(name, None):
-                routers[name] = await DatabaseRouter.create(f'./database/router/{name}.db', schema=router,
+                routers[name] = await DatabaseRouter.create(f'{db_config["base_path"]}{db_config["router_path"]}{name}.db', schema=router,
                                                             persist=True)
 
         return cls(config, routers)
+
+    async def new_db(self, uuid, schema: Union[str, dict] = None):
+        if not isinstance(schema, dict):
+            schema = self.config["common"].get(str(schema), {})
+
+        db_config = self.config["meta"]["database"]
+        return await DatabaseFile.create(f'{db_config["base_path"]}{db_config["common_path"]}{uuid}.db', schema=schema)
 
     @staticmethod
     async def config_from_yaml(config_dir: str = './config/'):
@@ -295,7 +307,7 @@ class ServerMeth:
                                            'methods': ('GET',)})
 
         if req.method in ep['methods']:
-            ep['response'] = ep['response'].format(req=req)
+            ep['response'] = ep['response'].format(req=req, app=req.app)
 
             return Response(content=ep['response'])
 

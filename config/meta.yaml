@@ -22,7 +22,7 @@ server:
 
       response:
         content:
-          'Db at {req.path}'
+          '{app.db.}'
 
 #      '/router':
 #        '/fetch':

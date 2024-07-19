@@ -1,4 +1,3 @@
-
 from sqlite_server.server import app
 from asyncio import new_event_loop
 from hypercorn.asyncio import serve
@@ -12,5 +11,3 @@ if __name__ == '__main__':
     print('DB loaded successfully.')
 
     loop.run_until_complete(serve(app, Config.from_mapping({'bind': f'{app.config["host"]}:{app.config["port"]}'})))
-
-
