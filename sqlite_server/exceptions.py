@@ -9,9 +9,3 @@ class DatabaseConnectionLost(SqliteServerException):
 
 class MalformedSchema(SqliteServerException):
     pass
-
-
-class InvalidAPIPath(SqliteServerException):
-    pass
-
-
