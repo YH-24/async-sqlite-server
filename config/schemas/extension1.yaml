@@ -1,0 +1,20 @@
+schema_type: 'common'
+
+player:
+  info:
+    username:
+      type: 'TEXT'
+    nickname:
+      type: 'TEXT'
+      value: 'bazinga'
+
+  items:
+    quantity:
+      type: 'INT'
+      value: 1
+    name:
+      type: 'TEXT'
+      value: 'Peanut butter pie'
+    rarity:
+      'type': 'INT'
+      'value': 1

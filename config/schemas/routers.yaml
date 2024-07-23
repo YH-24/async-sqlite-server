@@ -5,10 +5,11 @@ player:
     uuid:
       type: TEXT UNIQUE
       default: 'null'
-#      value: 'blahblah'
+      value: 'FUBAR'
     username:
       type: TEXT
       default: null
+      value: 'SPINACH BUTTER STEAK'
     nickname:
       type: TEXT
       default: null
