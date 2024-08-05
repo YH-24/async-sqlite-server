@@ -6,7 +6,6 @@ player:
       type: 'TEXT'
     nickname:
       type: 'TEXT'
-      value: 'bazinga'
 
   items:
     quantity:

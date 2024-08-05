@@ -1,3 +1,4 @@
+
 import os
 from typing import Union, Iterable
 from uuid import uuid4
@@ -54,7 +55,7 @@ class DatabaseTable:
 
         self = cls(conn, name, schema=cols, fp=fp)
 
-        await self.insert_row(cols, unique=unique)
+        # await self.insert_row(cols, unique=unique)
 
         await conn.commit()
 
@@ -79,32 +80,39 @@ class DatabaseTable:
         else:
             rows = await cur.fetchmany(abs(int(row_limit)))
         await cur.close()
-        col_rows = []
 
+
+        col_rows = []
         for row in rows:
             if not row:
                 continue
-            for index, (col, data) in enumerate(self.schema[self.name].items()):
-                if index < len(row):
-                    col_rows.append({col: {'type': data['type'], 'value': data['value'] if not row else row[index]}})
+            row_dict = {}
 
+
+
+            for index, (col, data) in enumerate(self.schema.items()):
+                if index < len(row):
+                    row_dict[str(col)] = {'type': data['type'], 'value': data['value'] if not row else row[index]}
+            col_rows.append(row_dict)
         if update:
             self.rows = col_rows
         return col_rows
 
-    async def insert_row(self, cols, unique: bool = True, or_: str = ''):
+    async def refresh(self, cols: Union[dict, str] = '*', limit: int = -1):
+        return await self.get_rows(cols=cols, row_limit=limit, update=True)
+
+    async def insert_row(self, cols, unique: bool = False, or_: str = ''):
 
         self.conn = await ensure_conn(self.fp, conn=self.conn)
 
         values = {}
         has_defaults = False
-
         for col_name, col in cols.items():
             if col.get('value', None):
                 values[col_name] = col['value']
             if not has_defaults:
-                if col.get('default', None):
-                    has_defaults = True
+                has_defaults = col.get('default', False)
+
 
         if unique:
             or_ = 'OR IGNORE'
@@ -145,7 +153,7 @@ class DatabaseFile:
         if not persist:
             await db_conn.__aexit__(0, 0, 0)
 
-        return cls(fp, db_conn, schema=schema)
+        return cls(fp, db_conn, schema=schema, tables=tables)
 
     async def refresh(self, table):
         raise NotImplementedError('todo*')
@@ -176,14 +184,14 @@ class DatabaseRouter(DatabaseFile):
         uuid = str(uuid4())
 
         while uuid_taken:
-            if not await self.tables[self.router_table].get_row(where={'uuid': uuid}):
+            if not await self.tables[self.router_table].get_rows(where={'uuid': uuid}):
                 uuid_taken = False
             uuid = str(uuid4())
 
         await self.tables[self.router_table].insert_row({'uuid': uuid, **cols})
 
     async def get_key(self, cols: dict):
-        return await self.tables[self.router_table].get_row(where=cols)
+        return await self.tables[self.router_table].get_rows(where=cols)
 
 
 class DatabaseManager:
@@ -196,25 +204,25 @@ class DatabaseManager:
     @classmethod
     async def create(cls):
         config = await cls.config_from_yaml()
+        os.makedirs('./database/', exist_ok=True)
+        os.makedirs('./database/router/', exist_ok=True)
+        os.makedirs('./database/common/', exist_ok=True)
         routers = {}
-        db_config = config["meta"]["database"]
-        os.makedirs(f'{db_config["base_path"]}', exist_ok=True)
-        os.makedirs(f'{db_config["base_path"]}{db_config["router_path"]}', exist_ok=True)
-        os.makedirs(f'{db_config["base_path"]}{db_config["common_path"]}', exist_ok=True)
-
         for name, router in config['router'].items():
             if not routers.get(name, None):
-                routers[name] = await DatabaseRouter.create(f'{db_config["base_path"]}{db_config["router_path"]}{name}.db', schema=router,
+                routers[name] = await DatabaseRouter.create(f'./database/router/{name}.db', schema=router,
                                                             persist=True)
 
         return cls(config, routers)
 
-    async def new_db(self, uuid, schema: Union[str, dict] = None):
-        if not isinstance(schema, dict):
-            schema = self.config["common"].get(str(schema), {})
+    async def new_db(self, fp: str, schema: dict = None):
 
-        db_config = self.config["meta"]["database"]
-        return await DatabaseFile.create(f'{db_config["base_path"]}{db_config["common_path"]}{uuid}.db', schema=schema)
+        db = await DatabaseFile.create(fp=fp, schema=schema)
+        return db
+        pass
+
+    async def open_db(self, fp):
+        pass
 
     @staticmethod
     async def config_from_yaml(config_dir: str = './config/'):
@@ -264,10 +272,8 @@ class ServerMeth:
 
     def __init__(self, config):
         self.config = config if config else {}
-        print(config['endpoints'])
         self.endpoints = {**self.endpoints, **self.iter_endpoints(config['endpoints'])}
 
-        print(self.endpoints)
 
     @staticmethod
     def res_content(res_input: dict):
@@ -307,7 +313,7 @@ class ServerMeth:
                                            'methods': ('GET',)})
 
         if req.method in ep['methods']:
-            ep['response'] = ep['response'].format(req=req, app=req.app)
+            ep['response'] = ep['response'].format(req=req)
 
             return Response(content=ep['response'])
 

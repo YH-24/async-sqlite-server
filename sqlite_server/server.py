@@ -1,45 +1,91 @@
-import os.path
-from typing import Union
+import os
 from uuid import uuid4
-from sqlite_server.structures import Server, DatabaseManager, DatabaseFile, DatabaseTable, DatabaseRouter, ServerMeth
+
+from sqlite_server.exceptions import InvalidAPIPath
+from sqlite_server.structures import ensure_conn, Server, DatabaseManager, DatabaseFile, DatabaseTable, DatabaseRouter, ServerMeth
 from fastapi import FastAPI, Request, Response, Path
 
 app = Server()
 
-@app.post('/database/{id:str}')
-async def create_db(req: Request, schema: Union[dict, str] = None):
 
-    db_id = req.path_params.get('id', None)
-    config = app.db.config['meta']['database']
+@app.get('/get/router/{router_name:str}/')
+async def get_db(req: Request):
+    search_key = req.query_params.get('key', None)
+    search_value = req.query_params.get('value', None)
 
-    if not db_id:
-        return Response('No database id provided')
-    print(f'./{config["base_path"]}{config["common_path"]}{db_id}.db')
-    if os.path.exists(f'./{config["base_path"]}{config["common_path"]}{db_id}.db'):
-        return Response('Database already exists')
+    router_name = req.path_params.get('router_name', None)
 
-    await app.db.new_db(db_id, schema=schema)
-    return Response('Created database')
+    if not router_name:
+        raise InvalidAPIPath('missing router name in get/router endpoint')
 
+    router = app.db.router.get(str(router_name).lower(), None)
 
-@app.get('/database/{id:str}/{table:str}')
-async def get_db_from_router(req: Request, ):
+    if not router:
+        raise InvalidAPIPath(f'router "{router_name}" does not exist')
 
-    db_id = req.path_params.get('id', None)
-    table = req.path_params.get('table', None)
+    if not search_key:
+        raise InvalidAPIPath('router search key (?key=) not provided')
+    # return Response(content=list(), media_type='application/json')
 
-    config = app.db.config['meta']['database']
-
-    if not db_id:
-        return Response('No database id provided')
-    print(f'./{config["base_path"]}{config["common_path"]}{db_id}.db')
-    if os.path.exists(f'./{config["base_path"]}{config["common_path"]}{db_id}.db'):
-        print('db exists')
-
-#
-#     return Response('test')
+    return Response(str(await router.get_key({f"{search_key}": search_value})))
 
 
-@app.route('/{path:str}')
-async def handle_all(req: Request,):
+@app.get('/fetch/database/{db_id: str}/table/{table:str}')
+async def get_table(req: Request):
+    db_id = req.path_params.get('db_id', None)
+    table_str = req.path_params.get('table', None)
+    if not db_id or not table_str:
+        raise InvalidAPIPath('database or table not provided')
+    fp = f'./database/common/{db_id}.db'
+    if not os.path.exists(fp):
+        raise InvalidAPIPath(f'no database found at "{fp}"')
+    db: DatabaseFile = await app.db.open_db(fp)
+    table: DatabaseTable = await db.get_table(table_name=table_str)
+
+    return table.refresh()
+
+
+@app.post('/new/database')
+async def create_db(req: Request):
+    uuid_opt = req.query_params.get('uuid', uuid4())
+    router_name = req.query_params.get('router', None)
+    body = await req.json()
+
+    schema = body.get('schema', {})
+    items = body.get('rows', ())
+
+    router: DatabaseRouter = app.db.router.get(str(router_name), None)
+
+    if router:
+        await router.add_key({'uuid': {'value': str(uuid_opt)}, 'username': {'value': 'bazingas'}})
+
+    schema_dict = app.db.config['common'].get(str(schema), {})
+
+    if isinstance(schema, dict):
+        schema_dict = schema
+
+    fp = f'./database/common/{uuid_opt}.db'
+    db = await app.db.new_db(fp, schema=schema_dict)
+
+
+    for item in items:
+        for row in item['rows']:
+            print(row)
+            await db.tables[item['table']].insert_row(row)
+
+    db.conn = await ensure_conn(fp, conn=db.conn)
+    await db.conn.commit()
+    return f'{uuid_opt}'
+
+@app.post('/insert/table/{name: str}')
+async def insert_table(req: Request):
+    db_id = req.query_params.get('uuid', '')
+
+
+
+    return ''
+
+@app.route('/{path:path}')
+async def index(req: Request, ):
     return await app.meth.handle_req(req)
+
